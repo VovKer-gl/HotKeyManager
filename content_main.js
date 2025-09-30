@@ -34,20 +34,27 @@ if (typeof window.__myHotkeyContentJsLoaded === 'undefined') {
         }
 
         if (el.classList.contains('toggle')) {
-            console.log(`[Game Hotkeys MAIN] Dispatching native MouseEvent for toggle: ${actionId}`);
-            const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
-            el.querySelector('path')?.dispatchEvent(clickEvent);
+            const classList = el.className.baseVal.split(' ');
+            const toggleClass = classList.find(c => c !== 'toggle' && c !== 'active');
+            if (toggleClass && typeof currentEvent !== 'undefined' && typeof currentEvent.toggleType === 'function') {
+                console.log(`[Game Hotkeys MAIN] Using internal function for toggle: '${toggleClass}'`);
+                currentEvent.toggleType(toggleClass);
+            } else {
+                console.error(`[Game Hotkeys MAIN] Could not handle toggle: ${actionId}.`);
+            }
             return;
         }
 
         if (el.classList.contains('flag')) {
-            console.log(`[Game Hotkeys MAIN] Manually toggling UI for flag: ${actionId}`);
-            const isAlreadyActive = el.classList.contains('active');
-            document.querySelectorAll('.flag.active').forEach(activeEl => {
-                activeEl.classList.remove('active');
-            });
-            if (!isAlreadyActive) {
-                el.classList.add('active');
+            const classList = el.className.baseVal.split(' ');
+            const toggleClass = classList.find(c => c !== 'flag' && c !== 'active');
+            if (toggleClass && typeof currentEvent !== 'undefined' && typeof currentEvent.toggleType === 'function') {
+                console.log(`[Game Hotkeys MAIN] Syncing state and UI for flag: '${toggleClass}'`);
+                currentEvent.toggleType(toggleClass);
+                const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+                el.dispatchEvent(clickEvent);
+            } else {
+                console.error(`[Game Hotkeys MAIN] Could not handle flag: ${actionId}.`);
             }
             return;
         }
@@ -56,35 +63,40 @@ if (typeof window.__myHotkeyContentJsLoaded === 'undefined') {
             console.log(`[Game Hotkeys MAIN] Processing event with active flags: '${actionId}'`);
 
             const activeFlags = [];
-            document.querySelectorAll('.flag.active').forEach(activeEl => {
-                const props = JSON.parse(activeEl.getAttribute('data-event-props'));
-                if (props && props.flag) {
-                    activeFlags.push(props.flag);
+            document.querySelectorAll('.flag.active, .toggle.active').forEach(activeEl => {
+                const propsString = activeEl.getAttribute('data-event-props');
+                if (propsString) {
+                    const props = JSON.parse(propsString);
+                    const flagName = props.flag || (activeEl.className.baseVal.split(' ').find(c => c !== 'toggle' && c !== 'flag' && c !== 'active'));
+                    if (flagName) {
+                        activeFlags.push(flagName);
+                    }
                 }
             });
 
-            const eventProps = JSON.parse(el.getAttribute('data-event-props'));
-            const eventDetails = {
-                ...eventProps,
-                flags: activeFlags
-            };
+            const eventPropsString = el.getAttribute('data-event-props');
+            if (eventPropsString) {
+                const eventProps = JSON.parse(eventPropsString);
+                const eventDetails = {
+                    ...eventProps,
+                    flags: activeFlags
+                };
 
-            playerEventModel.addPlayerEvent(eventDetails, true);
+                playerEventModel.addPlayerEvent(eventDetails, true);
 
-
-            setTimeout(() => {
-                console.log('[Game Hotkeys MAIN] Resetting active modifiers.');
-                document.querySelectorAll('.flag.active, .toggle.active').forEach(activeEl => {
-                    if (activeEl.classList.contains('toggle') && typeof currentEvent !== 'undefined') {
+                setTimeout(() => {
+                    console.log('[Game Hotkeys MAIN] Resetting active modifiers.');
+                    document.querySelectorAll('.toggle.active, .flag.active').forEach(activeEl => {
                         const classList = activeEl.className.baseVal.split(' ');
-                        const toggleClass = classList.find(c => c !== 'toggle' && c !== 'active');
+                        const toggleClass = classList.find(c => c !== 'toggle' && c !== 'flag' && c !== 'active');
                         if (toggleClass) {
                             currentEvent.toggleType(toggleClass);
                         }
-                    }
-                    activeEl.classList.remove('active');
-                });
-            }, 100);
+                    });
+                }, 100);
+            } else {
+                console.error(`[Game Hotkeys MAIN] Element ${actionId} does not have data-event-props.`);
+            }
 
         } else {
             console.error(`[Game Hotkeys MAIN] 'playerEventModel.addPlayerEvent' not found!`);
