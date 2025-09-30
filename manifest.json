@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Game Hotkeys Manager",
+  "version": "1.0",
+  "description": "Custom hotkeys manager for game controls",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Game Hotkeys Settings"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.sportlogiq.com/EventorApp.php*"],
+      "js": ["content_isolated.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://app.sportlogiq.com/EventorApp.php*"],
+      "js": ["content_main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
