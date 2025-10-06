@@ -1,5 +1,4 @@
-
-async function loadAndSendHotkeys() {
+async function loadAndSendAllSettings() {
     try {
         const allStorage = await chrome.storage.sync.get(null);
         const hotkeysObject = {};
@@ -13,17 +12,21 @@ async function loadAndSendHotkeys() {
             }
         }
 
-        // Відправляємо повідомлення в MAIN світ
+        const autoConfirmEnabled = !!allStorage.autoConfirmEnabled;
+
         window.postMessage({
-            type: "FROM_EXT_HOTKEYS_UPDATE",
-            payload: hotkeysObject
+            type: "FROM_EXT_SETTINGS_UPDATE",
+            payload: {
+                hotkeys: hotkeysObject,
+                autoConfirm: autoConfirmEnabled
+            }
         }, window.location.origin);
 
     } catch (err) {
-        console.error('[Game Hotkeys ISOLATED] Error loading hotkeys:', err);
+        console.error('[Game Hotkeys ISOLATED] Error loading settings:', err);
     }
 }
 
-chrome.storage.onChanged.addListener(loadAndSendHotkeys);
+chrome.storage.onChanged.addListener(loadAndSendAllSettings);
 
-loadAndSendHotkeys();
+loadAndSendAllSettings();

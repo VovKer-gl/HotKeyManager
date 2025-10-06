@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'puckprotection/oz/body/failed', name: 'Failed puck protection in the offensive zone' }
         ],
         'other': [
+            { id: 'auto-confirm-toggle', name: 'Auto-confirm Dialogs', type: 'toggle' },
             { id: 'toggle-edit-mode', name: 'Toggle Edit Mode', defaultShortcut: 'M' }
         ]
     };
@@ -96,12 +97,11 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[Game Hotkeys] Default hotkeys have been stored.');
     }
 
-    // НОВА ЛОГІКА: Функція для скидання налаштувань
     async function resetSettings() {
         const confirmation = confirm("Are you sure you want to reset all hotkeys to their default values? All your custom settings will be lost.");
         if (confirmation) {
-            await initializeDefaults(true); // `true` означає примусове скидання
-            await loadHotkeys(); // Перезавантажуємо поточну вкладку
+            await initializeDefaults(true);
+            await loadHotkeys();
             showStatus('All hotkeys have been reset to default.', 'success');
         }
     }
@@ -125,11 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadHotkeys() {
         const storageKey = `${currentCategory}Hotkeys`;
-        const result = await chrome.storage.sync.get([storageKey]);
-        renderHotkeyList(result[storageKey] || []);
+        const result = await chrome.storage.sync.get([storageKey, 'autoConfirmEnabled']);
+        renderHotkeyList(result[storageKey] || [], result.autoConfirmEnabled);
     }
 
-    function renderHotkeyList(savedHotkeys) {
+    function renderHotkeyList(savedHotkeys, autoConfirmEnabled) {
         hotkeyList.innerHTML = '';
         const categoryItems = categoryData[currentCategory];
         if (!categoryItems || categoryItems.length === 0) {
@@ -137,10 +137,36 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         categoryItems.forEach(item => {
-            const savedHotkey = savedHotkeys.find(h => h.actionId === item.id);
-            const shortcut = savedHotkey ? savedHotkey.shortcut : item.defaultShortcut;
-            hotkeyList.appendChild(createHotkeyItem(item, shortcut));
+            if (item.type === 'toggle') {
+                hotkeyList.appendChild(createToggleItem(item, autoConfirmEnabled));
+            } else {
+                const savedHotkey = savedHotkeys.find(h => h.actionId === item.id);
+                const shortcut = savedHotkey ? savedHotkey.shortcut : item.defaultShortcut;
+                hotkeyList.appendChild(createHotkeyItem(item, shortcut));
+            }
         });
+    }
+
+    function createToggleItem(item, isEnabled) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'hotkey-item toggle-item';
+        itemDiv.innerHTML = `
+            <div class="event-info"><div class="event-name">${item.name}</div></div>
+            <label class="switch">
+                <input type="checkbox" id="${item.id}">
+                <span class="slider"></span>
+            </label>
+        `;
+        const checkbox = itemDiv.querySelector('input');
+        checkbox.checked = !!isEnabled;
+
+        checkbox.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.sync.set({ autoConfirmEnabled: enabled });
+            showStatus(enabled ? 'Auto-confirm enabled' : 'Auto-confirm disabled', 'success');
+        });
+
+        return itemDiv;
     }
 
     function createHotkeyItem(item, shortcut) {
@@ -253,9 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await loadHotkeys();
     }
 
-    // НОВА ЛОГІКА: Сповіщення замінюють одне одного
     function showStatus(message, type = 'success') {
-        // Видаляємо всі існуючі сповіщення
         toastContainer.innerHTML = '';
 
         const toast = document.createElement('div');

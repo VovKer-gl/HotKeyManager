@@ -1,20 +1,46 @@
-
 if (typeof window.__myHotkeyContentJsLoaded === 'undefined') {
     window.__myHotkeyContentJsLoaded = true;
+
+    const originalWindowConfirm = window.confirm;
+
+    function applyAutoConfirm(enabled) {
+        if (enabled) {
+            if (window.confirm !== originalWindowConfirm) return;
+            console.log('[Game Hotkeys] Auto-confirm ENABLED.');
+            window.confirm = function(message) {
+                console.log(`[Game Hotkeys] Auto-confirmed dialog: "${message}"`);
+                return true;
+            };
+        } else {
+            if (window.confirm === originalWindowConfirm) return;
+            console.log('[Game Hotkeys] Auto-confirm DISABLED.');
+            window.confirm = originalWindowConfirm;
+        }
+    }
 
     const IGNORE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
     const hotkeyMap = new Map();
 
     window.addEventListener('message', (event) => {
-        if (event.source !== window || event.data.type !== "FROM_EXT_HOTKEYS_UPDATE") {
+        if (event.source !== window || !event.data.type || !event.data.type.startsWith("FROM_EXT_")) {
             return;
         }
-        hotkeyMap.clear();
-        const hotkeysObject = event.data.payload;
-        for (const shortcut in hotkeysObject) {
-            hotkeyMap.set(shortcut, hotkeysObject[shortcut]);
+
+        if (event.data.type === "FROM_EXT_SETTINGS_UPDATE") {
+            const settings = event.data.payload;
+
+            hotkeyMap.clear();
+            if (settings.hotkeys) {
+                for (const shortcut in settings.hotkeys) {
+                    hotkeyMap.set(shortcut, settings.hotkeys[shortcut]);
+                }
+                console.log('[Game Hotkeys MAIN] Hotkeys updated:', hotkeyMap);
+            }
+
+            if (typeof settings.autoConfirm !== 'undefined') {
+                applyAutoConfirm(settings.autoConfirm);
+            }
         }
-        console.log('[Game Hotkeys MAIN] Hotkeys updated:', hotkeyMap);
     });
 
     function triggerGameAction(actionId) {
