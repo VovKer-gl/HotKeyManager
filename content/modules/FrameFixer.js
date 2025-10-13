@@ -1,143 +1,106 @@
+// content/modules/FrameFixer.js
 const FrameFixer = {
     _observer: null,
-    _targetTableBody: null,
     _isEnabled: false,
+    _intervalId: null,
 
     enable: function () {
         if (this._isEnabled) return;
         console.log("[Module] FrameFixer enabling...");
         this._isEnabled = true;
-        this.start();
+        this._start();
     },
 
     disable: function () {
         if (!this._isEnabled) return;
         console.log("[Module] FrameFixer disabling...");
+
         if (this._observer) {
             this._observer.disconnect();
             this._observer = null;
         }
-        // Видаляємо кнопки, які ми додали
-        document.querySelectorAll('tr[data-helper-processed] .frame-fix-cell').forEach(cell => cell.remove());
-        document.querySelectorAll('tr[data-helper-processed]').forEach(row => row.removeAttribute('data-helper-processed'));
+        if (this._intervalId) {
+            clearInterval(this._intervalId);
+            this._intervalId = null;
+        }
+
+        document.querySelectorAll('td.frame-fix-cell').forEach(cell => cell.remove());
+        document.querySelectorAll('tr[data-helper-processed-ff]').forEach(row => row.removeAttribute('data-helper-processed-ff'));
+
         this._isEnabled = false;
     },
 
-    start: function () {
-        if (!this._isEnabled) return;
+    _start: function () {
+        this._intervalId = setInterval(() => {
+            const targetTableBody = document.querySelector('#game-events tbody');
+            if (targetTableBody) {
+                clearInterval(this._intervalId);
+                this._intervalId = null;
 
-        const intervalId = setInterval(() => {
-            this._targetTableBody = document.querySelector('#game-events tbody');
-            if (this._targetTableBody) {
-                clearInterval(intervalId);
-                this._targetTableBody.querySelectorAll('tr').forEach(this._processTableRow.bind(this));
+                // Обробляємо існуючі рядки
+                targetTableBody.querySelectorAll('tr').forEach(row => this._processTableRow(row));
 
+                // Створюємо спостерігача для нових рядків
                 this._observer = new MutationObserver((mutationsList) => {
-                    mutationsList.forEach(mutation => mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.tagName === 'TR') {
-                            this._processTableRow(node);
-                        } else if (node.nodeType === 1 && node.querySelectorAll) {
-                            node.querySelectorAll('tr').forEach(this._processTableRow.bind(this));
+                    for (const mutation of mutationsList) {
+                        for (const node of mutation.addedNodes) {
+                            if (node.nodeType === 1 && node.tagName === 'TR') {
+                                this._processTableRow(node);
+                            } else if (node.nodeType === 1 && node.querySelectorAll) {
+                                node.querySelectorAll('tr').forEach(row => this._processTableRow(row));
+                            }
                         }
-                    }));
+                    }
                 });
-                this._observer.observe(this._targetTableBody, {childList: true, subtree: true});
+                this._observer.observe(targetTableBody, { childList: true, subtree: true });
             }
         }, 500);
     },
 
-    _waitFor: function (conditionFn, callbackFn, timeout = 3000) {
-        const startTime = Date.now();
-        const intervalId = setInterval(() => {
-            if (conditionFn()) {
-                clearInterval(intervalId);
-                callbackFn();
-            } else if (Date.now() - startTime > timeout) {
-                clearInterval(intervalId);
-            }
-        }, 100);
-    },
-
-    _simulateRealClick: function (element) {
-        if (!element) return;
-        element.dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}));
-    },
-
-    _performFrameFix: function (row, direction) {
-        row.click();
-        setTimeout(() => {
-            if (typeof playerEventEditor === 'undefined' || !playerEventEditor.checkIfUserCanEnterEditMode) return;
-            playerEventEditor.checkIfUserCanEnterEditMode();
-
-            this._waitFor(() => document.querySelector('div#frame-edit-controls.edit-current'), () => {
-                const timecodeSpan = document.getElementById('current-frame');
-                const originalTimecode = timecodeSpan ? timecodeSpan.textContent : '';
-
-                setTimeout(() => {
-                    const buttonId = direction === 'next' ? 'f-next-frame' : 'f-previous-frame';
-                    const frameButton = document.getElementById(buttonId);
-                    if (!frameButton) return;
-                    this._simulateRealClick(frameButton);
-
-                    this._waitFor(() => {
-                        const currentTimecode = timecodeSpan ? timecodeSpan.textContent : '';
-                        return currentTimecode && currentTimecode !== originalTimecode;
-                    }, () => {
-                        if (playerEventEditor.editData) {
-                            playerEventEditor.editData.frame = videoFrameTracker.get();
-                        } else {
-                            return;
-                        }
-
-                        setTimeout(() => {
-                            if (typeof playerEventEditor.startExitEditMode === 'function') {
-                                playerEventEditor.startExitEditMode();
-                                this._waitFor(() => playerEventEditor && playerEventEditor.editMode === false, () => {
-                                }, 3000);
-                            }
-                        }, 150);
-                    }, 3000);
-                }, 200);
-            }, 3000);
-        }, 50);
+    /**
+     * Надсилає повідомлення до injected.js для виконання дії
+     * @param {string} eventId
+     * @param {'next' | 'prev'} direction
+     */
+    _requestFrameFix: function(eventId, direction) {
+        window.postMessage({
+            type: "FROM_EXT_FRAME_FIX",
+            payload: { eventId, direction }
+        }, window.location.origin);
     },
 
     _processTableRow: function (row) {
-        if (!row || row.hasAttribute('data-helper-processed')) return;
+        if (!row || !row.id || row.hasAttribute('data-helper-processed-ff')) return;
 
-        if (row.id && row.id.startsWith('event-player-')) {
+        if (row.id.startsWith('event-player-')) {
             const createButtonCell = (title, iconClass, clickHandler) => {
                 const cell = document.createElement('td');
-                cell.className = 'frame-fix-cell'; // Клас для легкого видалення
+                cell.className = 'frame-fix-cell';
                 cell.style.width = '30px';
                 cell.style.textAlign = 'center';
-
                 const button = document.createElement('button');
                 button.title = title;
                 button.innerHTML = `<span class="glyphicon ${iconClass}" aria-hidden="true"></span>`;
                 button.style.cssText = `background: transparent; border: none; padding: 0; margin: 0; cursor: pointer; color: #fff; font-size: 14px; vertical-align: middle; transition: color 0.2s ease-in-out;`;
-                button.onmouseover = () => {
-                    button.style.color = '#999';
-                };
-                button.onmouseout = () => {
-                    button.style.color = '#fff';
-                };
+                button.onmouseover = () => button.style.color = '#999';
+                button.onmouseout = () => button.style.color = '#fff';
                 button.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    clickHandler(row);
+                    clickHandler(); // Викликаємо обробник
                 });
-
                 cell.appendChild(button);
                 return cell;
             };
 
-            const backButtonCell = createButtonCell('Fix Frame (-1F)', 'glyphicon-step-backward', () => this._performFrameFix(row, 'prev'));
-            const forwardButtonCell = createButtonCell('Fix Frame (+1F)', 'glyphicon-step-forward', () => this._performFrameFix(row, 'next'));
+            // При кліку викликаємо _requestFrameFix, передаючи ID рядка і напрямок
+            const backButtonCell = createButtonCell('Fix Frame (-1F)', 'glyphicon-step-backward', () => this._requestFrameFix(row.id, 'prev'));
+            const forwardButtonCell = createButtonCell('Fix Frame (+1F)', 'glyphicon-step-forward', () => this._requestFrameFix(row.id, 'next'));
 
             row.appendChild(backButtonCell);
             row.appendChild(forwardButtonCell);
-        } else if (row.id && row.id.startsWith('event-game-')) {
+
+        } else if (row.id.startsWith('event-game-')) {
             const emptyCell1 = document.createElement('td');
             emptyCell1.className = 'frame-fix-cell';
             const emptyCell2 = document.createElement('td');
@@ -146,6 +109,6 @@ const FrameFixer = {
             row.appendChild(emptyCell2);
         }
 
-        row.setAttribute('data-helper-processed', 'true');
+        row.setAttribute('data-helper-processed-ff', 'true');
     }
 };
