@@ -1,3 +1,4 @@
+// popup.js (повний оновлений файл з виправленим ключем)
 document.addEventListener('DOMContentLoaded', function() {
     const hotkeyList = document.querySelector('.hotkey-list');
     const toastContainer = document.getElementById('toast-container');
@@ -69,19 +70,30 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'puckprotection/oz/body/failed', name: 'Failed puck protection in the offensive zone' }
         ],
         'other': [
+            { id: 'carry-line-snap-toggle', name: 'Enable Vertical Line Snapping', type: 'toggle' },
             { id: 'toggle-roster-menu', name: 'Show Player Roster Menu (Radial)'},
             { id: 'auto-confirm-toggle', name: 'Auto-confirm Dialogs', type: 'toggle' },
             { id: 'toggle-edit-mode', name: 'Toggle Edit Mode', defaultShortcut: 'M' }
         ]
     };
+
+    function getSettingKeyFromId(id) {
+        if (id === 'carry-line-snap-toggle') {
+            return 'carryLineSnapEnabled';
+        }
+        if (id === 'auto-confirm-toggle') {
+            return 'autoConfirmEnabled';
+        }
+        const key = id.replace(/-toggle$/, '');
+        return key.replace(/-\w/g, (match) => match[1].toUpperCase()) + 'Enabled';
+    }
+
     async function initializeDefaults(force = false) {
         const { defaultsInitialized } = await chrome.storage.sync.get('defaultsInitialized');
         if (defaultsInitialized && !force) return;
-
         if (force) {
             await chrome.storage.sync.clear();
         }
-
         const allDefaultHotkeys = {};
         for (const category in categoryData) {
             const storageKey = `${category}Hotkeys`;
@@ -90,7 +102,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 .map(item => ({ actionId: item.id, shortcut: item.defaultShortcut }));
             if (defaultsInCategory.length > 0) allDefaultHotkeys[storageKey] = defaultsInCategory;
         }
-
         await chrome.storage.sync.set(allDefaultHotkeys);
         await chrome.storage.sync.set({ defaultsInitialized: true });
     }
@@ -104,11 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getCategoryTitle(category) {
-        const titles = {
-            'blocks-checks': 'Blocks & Checks Actions', 'lprs': 'LPRs Actions',
-            'carries-dumps': 'Carries & Dumps Actions', 'passes': 'Passes Actions',
-            'shots-puck-protection': 'Shots & Puck Protection Actions', 'other': 'Other Actions'
-        };
+        const titles = { 'blocks-checks': 'Blocks & Checks Actions', 'lprs': 'LPRs Actions', 'carries-dumps': 'Carries & Dumps Actions', 'passes': 'Passes Actions', 'shots-puck-protection': 'Shots & Puck Protection Actions', 'other': 'Other Actions' };
         return titles[category] || 'Actions';
     }
 
@@ -122,11 +129,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadHotkeys() {
         const storageKey = `${currentCategory}Hotkeys`;
-        const result = await chrome.storage.sync.get([storageKey, 'autoConfirmEnabled']);
-        renderHotkeyList(result[storageKey] || [], result.autoConfirmEnabled);
+        const allSettings = await chrome.storage.sync.get(null);
+        renderHotkeyList(allSettings[storageKey] || [], allSettings);
     }
 
-    function renderHotkeyList(savedHotkeys, autoConfirmEnabled) {
+    function renderHotkeyList(savedHotkeys, allSettings) {
         hotkeyList.innerHTML = '';
         const categoryItems = categoryData[currentCategory];
         if (!categoryItems || categoryItems.length === 0) {
@@ -135,7 +142,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         categoryItems.forEach(item => {
             if (item.type === 'toggle') {
-                hotkeyList.appendChild(createToggleItem(item, autoConfirmEnabled));
+                const settingKey = getSettingKeyFromId(item.id);
+                const isEnabled = !!allSettings[settingKey];
+                hotkeyList.appendChild(createToggleItem(item, isEnabled));
             } else {
                 const savedHotkey = savedHotkeys.find(h => h.actionId === item.id);
                 const shortcut = savedHotkey ? savedHotkey.shortcut : item.defaultShortcut;
@@ -158,8 +167,9 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.checked = !!isEnabled;
         checkbox.addEventListener('change', (e) => {
             const enabled = e.target.checked;
-            chrome.storage.sync.set({ autoConfirmEnabled: enabled });
-            showStatus(enabled ? 'Auto-confirm enabled' : 'Auto-confirm disabled', 'success');
+            const settingKey = getSettingKeyFromId(item.id);
+            chrome.storage.sync.set({ [settingKey]: enabled });
+            showStatus(enabled ? `${item.name} enabled` : `${item.name} disabled`, 'success');
         });
         return itemDiv;
     }
@@ -167,13 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function createHotkeyItem(item, shortcut) {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'hotkey-item';
-        itemDiv.innerHTML = `
-            <div class="event-info"><div class="event-name">${item.name}</div></div>
-            <div class="hotkey-input-container">
-                <input type="text" class="hotkey-input" placeholder="Натисніть..."
-                       value="${shortcut || ''}" readonly data-action-id="${item.id}">
-                ${shortcut ? '<button class="clear-btn" title="Видалити">×</button>' : ''}
-            </div>`;
+        itemDiv.innerHTML = ` <div class="event-info"><div class="event-name">${item.name}</div></div> <div class="hotkey-input-container"> <input type="text" class="hotkey-input" placeholder="Натисніть..." value="${shortcut || ''}" readonly data-action-id="${item.id}"> ${shortcut ? '<button class="clear-btn" title="Видалити">×</button>' : ''} </div>`;
         itemDiv.querySelector('.hotkey-input').addEventListener('click', (e) => startRecording(e.target));
         const clearBtn = itemDiv.querySelector('.clear-btn');
         if (clearBtn) {
