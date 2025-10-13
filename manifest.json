@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Game Hotkeys Manager",
-  "version": "3.1",
+  "version": "3.2",
   "description": "Custom hotkeys manager with SVG snapping for game controls",
   "permissions": [
     "storage"
@@ -14,6 +14,8 @@
     {
       "matches": ["https://app.sportlogiq.com/EventorApp.php*"],
       "js": [
+        "content/modules/FrameFixer.js",
+        "content/modules/VideoScrubber.js",
         "content/modules/SvgVerticalSnap.js",
         "content/modules/HotkeyManager.js",
         "content/loader.js"

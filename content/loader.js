@@ -20,7 +20,10 @@ async function loadAndApplySettings() {
         HotkeyManager.updateSettings({
             hotkeys: hotkeysObject,
             autoConfirm: !!allStorage.autoConfirmEnabled,
-            carryLineSnap: !!allStorage.carryLineSnapEnabled
+            carryLineSnap: !!allStorage.carryLineSnapEnabled,
+            frameFixerEnabled: !!allStorage.frameFixerEnabled,
+            videoScrubberEnabled: !!allStorage.videoScrubberEnabled,
+            invertScrubberEnabled: !!allStorage.invertScrubberEnabled
         });
     } catch (err) {
         console.error("[Loader] Error loading settings:", err);
@@ -31,20 +34,25 @@ function main() {
     console.log("[Loader] Waiting for page elements...");
 
     const observer = new MutationObserver((mutations, obs) => {
-        const svgElement = document.getElementById('Layer_1');
-        const markerElement = document.getElementById('current-xy-marker');
-        const rosterElement = document.getElementById('roster');
+        const allElementsReady =
+            document.getElementById('Layer_1') &&
+            document.getElementById('current-xy-marker') &&
+            document.querySelector('#game-events tbody');
 
-        if (svgElement && markerElement && rosterElement) {
-            console.log("[Loader] All elements found. Initializing modules.");
+        if (allElementsReady) {
+            console.log("%c[Loader] All elements found. Initializing modules...", 'color: green; font-weight: bold;');
             obs.disconnect();
 
-            SvgVerticalSnap.init(svgElement, markerElement);
+            SvgVerticalSnap.init(document.getElementById('Layer_1'), document.getElementById('current-xy-marker'));
+            FrameFixer.enable();
+            VideoScrubber.init();
             HotkeyManager.init(SvgVerticalSnap);
 
             loadAndApplySettings();
 
             window.addEventListener('reloadSettings', loadAndApplySettings);
+
+            console.log('[Loader] Initialization complete.');
         }
     });
 

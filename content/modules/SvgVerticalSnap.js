@@ -6,10 +6,10 @@ const SvgVerticalSnap = {
     hasMouseEnteredSvg: false,
     snapLinesX: [150, 252, 201],
     lockedX: 0,
-    lastMousePos: { x: 0, y: 0 },
+    lastMousePos: {x: 0, y: 0},
     _boundOnMouseMove: null,
 
-    init: function(svgEl, markerEl) {
+    init: function (svgEl, markerEl) {
         if (this.isInitialized) return;
         this.svgElement = svgEl;
         this.markerElement = markerEl;
@@ -17,12 +17,12 @@ const SvgVerticalSnap = {
         this.isInitialized = true;
     },
 
-    enable: function() {
+    enable: function () {
         if (!this.isInitialized) return;
         this.svgElement.addEventListener('mousemove', this._boundOnMouseMove);
     },
 
-    disable: function() {
+    disable: function () {
         if (!this.isInitialized) return;
         this.svgElement.removeEventListener('mousemove', this._boundOnMouseMove);
         if (this.isSnapActive) {
@@ -31,17 +31,17 @@ const SvgVerticalSnap = {
         }
     },
 
-    getMousePosition: function(evt) {
+    getMousePosition: function (evt) {
         const CTM = this.svgElement.getScreenCTM();
-        if (!CTM) return { x: 0, y: 0 };
-        return { x: (evt.clientX - CTM.e) / CTM.a, y: (evt.clientY - CTM.f) / CTM.d };
+        if (!CTM) return {x: 0, y: 0};
+        return {x: (evt.clientX - CTM.e) / CTM.a, y: (evt.clientY - CTM.f) / CTM.d};
     },
 
-    findClosestLineX: function(currentX) {
+    findClosestLineX: function (currentX) {
         return this.snapLinesX.reduce((prev, curr) => (Math.abs(curr - currentX) < Math.abs(prev - currentX) ? curr : prev));
     },
 
-    onMouseMove: function(event) {
+    onMouseMove: function (event) {
         if (!this.hasMouseEnteredSvg) this.hasMouseEnteredSvg = true;
         this.lastMousePos = this.getMousePosition(event);
 
@@ -50,7 +50,7 @@ const SvgVerticalSnap = {
         }
     },
 
-    activate: function() {
+    activate: function () {
         if (!this.isInitialized || this.isSnapActive || !this.hasMouseEnteredSvg) return;
 
         this.isSnapActive = true;
@@ -61,10 +61,10 @@ const SvgVerticalSnap = {
         this.svgElement.style.cursor = 'ns-resize';
     },
 
-    deactivateAndSimulateClick: function() {
+    deactivateAndSimulateClick: function () {
         if (!this.isInitialized || !this.isSnapActive) return;
 
-        const svgPoint = { x: this.lockedX, y: this.lastMousePos.y };
+        const svgPoint = {x: this.lockedX, y: this.lastMousePos.y};
         const CTM = this.svgElement.getScreenCTM();
         if (CTM) {
             const clientX = svgPoint.x * CTM.a + CTM.e;
@@ -78,7 +78,7 @@ const SvgVerticalSnap = {
 
         window.postMessage({
             type: "FROM_EXT_ACTION_EXECUTE",
-            payload: { actionId: 'carry/nz/none/successful' }
+            payload: {actionId: 'carry/nz/none/successful'}
         }, window.location.origin);
         console.log(`[SVG Snap] "Carry Line" event triggered.`);
 

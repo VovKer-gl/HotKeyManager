@@ -1,21 +1,20 @@
-// content/modules/HotkeyManager.js (Версія 3.1 - Спрощена логіка)
-
 const HotkeyManager = {
     snapManager: null,
-    rosterManager: null,
     hotkeyMap: new Map(),
     activeHotkeyActionId: null,
     settings: {},
     _isSnapEnabled: false,
+    _isFrameFixerEnabled: false,
+    _isVideoScrubberEnabled: false,
 
-    // ID нашого "особливого" хоткею
     CARRY_LINE_ACTION_ID: 'carry/nz/none/successful',
 
-    init: function(snapManager, rosterManager) {
+    init: function (snapManager) {
+        console.log("[Module] HotkeyManager initializing...");
         this.snapManager = snapManager;
-        this.rosterManager = rosterManager;
 
         chrome.storage.onChanged.addListener(() => {
+            console.log("[HotkeyManager] Storage changed. Reloading settings...");
             window.dispatchEvent(new CustomEvent('reloadSettings'));
         });
 
@@ -23,7 +22,8 @@ const HotkeyManager = {
         window.addEventListener('keyup', this.onKeyUp.bind(this), true);
     },
 
-    updateSettings: function(payload) {
+    updateSettings: function (payload) {
+        console.log("[HotkeyManager] Applying settings:", payload);
         this.settings = payload;
         this.hotkeyMap.clear();
         if (payload.hotkeys) {
@@ -34,7 +34,7 @@ const HotkeyManager = {
 
         window.postMessage({
             type: "FROM_EXT_ACTION_AUTOCONFIRM",
-            payload: { enabled: !!this.settings.autoConfirm }
+            payload: {enabled: !!this.settings.autoConfirm}
         }, window.location.origin);
 
         if (this.settings.carryLineSnap && !this._isSnapEnabled) {
@@ -44,9 +44,28 @@ const HotkeyManager = {
             this.snapManager.disable();
             this._isSnapEnabled = false;
         }
+
+        if (this.settings.frameFixerEnabled && !this._isFrameFixerEnabled) {
+            FrameFixer.enable();
+            this._isFrameFixerEnabled = true;
+        } else if (!this.settings.frameFixerEnabled && this._isFrameFixerEnabled) {
+            FrameFixer.disable();
+            this._isFrameFixerEnabled = false;
+        }
+
+        if (this.settings.videoScrubberEnabled && !this._isVideoScrubberEnabled) {
+            VideoScrubber.enable(this.settings.invertScrubberEnabled);
+            this._isVideoScrubberEnabled = true;
+        } else if (!this.settings.videoScrubberEnabled && this._isVideoScrubberEnabled) {
+            VideoScrubber.disable();
+            this._isVideoScrubberEnabled = false;
+        } else if (this.settings.videoScrubberEnabled && this._isVideoScrubberEnabled) {
+            VideoScrubber.disable();
+            VideoScrubber.enable(this.settings.invertScrubberEnabled);
+        }
     },
 
-    formatShortcutFromEvent: function(e) {
+    formatShortcutFromEvent: function (e) {
         const parts = [];
         if (e.ctrlKey) parts.push('Control');
         if (e.shiftKey) parts.push('Shift');
@@ -57,7 +76,7 @@ const HotkeyManager = {
         return parts.join(' + ');
     },
 
-    onKeyDown: function(event) {
+    onKeyDown: function (event) {
         if (event.repeat || this.activeHotkeyActionId) return;
         const target = event.target;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
@@ -66,46 +85,28 @@ const HotkeyManager = {
 
         const actionId = this.hotkeyMap.get(shortcut);
 
-        // --- НОВА СПРОЩЕНА ЛОГІКА ---
-        // Перевіряємо, чи це хоткей "Line Carry" І чи увімкнений тумблер
         if (actionId === this.CARRY_LINE_ACTION_ID && this.settings.carryLineSnap) {
             event.preventDefault();
             event.stopImmediatePropagation();
-            this.activeHotkeyActionId = actionId; // Запам'ятовуємо для keyup
-            this.snapManager.activate(); // Активуємо режим прив'язки
-            return; // Виходимо, щоб не спрацювала інша логіка
-        }
-
-        // Якщо це будь-який інший хоткей (або тумблер вимкнений)
-        event.preventDefault();
-        event.stopImmediatePropagation();
-
-        // Якщо це меню, воно теж вимагає утримання
-        if (actionId === 'toggle-roster-menu') {
             this.activeHotkeyActionId = actionId;
-            this.rosterManager.show(event.clientX, event.clientY);
+            this.snapManager.activate();
         } else {
-            // Всі інші - миттєві
-            window.postMessage({ type: "FROM_EXT_ACTION_EXECUTE", payload: { actionId } }, window.location.origin);
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            window.postMessage({type: "FROM_EXT_ACTION_EXECUTE", payload: {actionId}}, window.location.origin);
         }
     },
 
-    onKeyUp: function(event) {
+    onKeyUp: function (event) {
         if (!this.activeHotkeyActionId) return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
 
-        // Виконуємо дію, що відповідає збереженому activeHotkeyActionId
-        switch (this.activeHotkeyActionId) {
-            case this.CARRY_LINE_ACTION_ID:
-                if (this.settings.carryLineSnap) {
-                    this.snapManager.deactivateAndSimulateClick();
-                }
-                break;
-            case 'toggle-roster-menu':
-                this.rosterManager.selectHighlightedAndHide();
-                break;
+        if (this.activeHotkeyActionId === this.CARRY_LINE_ACTION_ID) {
+            if (this.settings.carryLineSnap) {
+                this.snapManager.deactivateAndSimulateClick();
+            }
         }
 
         this.activeHotkeyActionId = null;
