@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'puckprotection/oz/body/failed', name: 'Failed puck protection in the offensive zone' }
         ],
         'other': [
+            { id: 'toggle-roster-menu', name: 'Show Player Roster Menu (Radial)'},
             { id: 'auto-confirm-toggle', name: 'Auto-confirm Dialogs', type: 'toggle' },
             { id: 'toggle-edit-mode', name: 'Toggle Edit Mode', defaultShortcut: 'M' }
         ]
@@ -79,10 +80,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (force) {
             await chrome.storage.sync.clear();
-            console.log('[Game Hotkeys] All settings cleared.');
         }
 
-        console.log('[Game Hotkeys] Initializing default hotkeys...');
         const allDefaultHotkeys = {};
         for (const category in categoryData) {
             const storageKey = `${category}Hotkeys`;
@@ -94,12 +93,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         await chrome.storage.sync.set(allDefaultHotkeys);
         await chrome.storage.sync.set({ defaultsInitialized: true });
-        console.log('[Game Hotkeys] Default hotkeys have been stored.');
     }
 
     async function resetSettings() {
-        const confirmation = confirm("Are you sure you want to reset all hotkeys to their default values? All your custom settings will be lost.");
-        if (confirmation) {
+        if (confirm("Are you sure you want to reset all hotkeys to their default values? All your custom settings will be lost.")) {
             await initializeDefaults(true);
             await loadHotkeys();
             showStatus('All hotkeys have been reset to default.', 'success');
@@ -159,13 +156,11 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         const checkbox = itemDiv.querySelector('input');
         checkbox.checked = !!isEnabled;
-
         checkbox.addEventListener('change', (e) => {
             const enabled = e.target.checked;
             chrome.storage.sync.set({ autoConfirmEnabled: enabled });
             showStatus(enabled ? 'Auto-confirm enabled' : 'Auto-confirm disabled', 'success');
         });
-
         return itemDiv;
     }
 
@@ -281,30 +276,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showStatus(message, type = 'success') {
         toastContainer.innerHTML = '';
-
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-
         const messageSpan = document.createElement('span');
         messageSpan.className = 'toast-message';
         messageSpan.textContent = message;
-
         const closeButton = document.createElement('button');
         closeButton.className = 'toast-close';
         closeButton.innerHTML = '&times;';
-
         toast.appendChild(messageSpan);
         toast.appendChild(closeButton);
-
         toastContainer.appendChild(toast);
-
         setTimeout(() => toast.classList.add('show'), 10);
-
         const removeToast = () => {
             toast.classList.remove('show');
             toast.addEventListener('transitionend', () => toast.remove());
         };
-
         closeButton.addEventListener('click', removeToast);
         setTimeout(removeToast, 4000);
     }
@@ -315,7 +302,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const initialCategory = lastCategory || 'blocks-checks';
         switchCategory(initialCategory);
         categories.forEach(c => c.addEventListener('click', () => switchCategory(c.dataset.category)));
-
         resetBtn.addEventListener('click', resetSettings);
     }
 
