@@ -8,6 +8,7 @@ const HotkeyManager = {
     _isVideoScrubberEnabled: false,
 
     CARRY_LINE_ACTION_ID: 'carry/nz/none/successful',
+    FIND_EVENT_ACTION_ID: 'find-event-by-clipboard',
 
     init: function (snapManager) {
         console.log("[Module] HotkeyManager initializing...");
@@ -85,6 +86,18 @@ const HotkeyManager = {
 
         const actionId = this.hotkeyMap.get(shortcut);
 
+        if (actionId === this.FIND_EVENT_ACTION_ID) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (this.settings.qaHelperEnabled) {
+                console.log('[HotkeyManager] QA Helper enabled, triggering find by clipboard...');
+                QaHelper.triggerFindByClipboard();
+            } else {
+                console.log('[HotkeyManager] QA Helper is disabled, ignoring hotkey.');
+            }
+            return;
+        }
+
         if (actionId === this.CARRY_LINE_ACTION_ID && this.settings.carryLineSnap) {
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -99,16 +112,13 @@ const HotkeyManager = {
 
     onKeyUp: function (event) {
         if (!this.activeHotkeyActionId) return;
-
         event.preventDefault();
         event.stopImmediatePropagation();
-
         if (this.activeHotkeyActionId === this.CARRY_LINE_ACTION_ID) {
             if (this.settings.carryLineSnap) {
                 this.snapManager.deactivateAndSimulateClick();
             }
         }
-
         this.activeHotkeyActionId = null;
     }
 };

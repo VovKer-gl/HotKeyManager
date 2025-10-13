@@ -17,14 +17,20 @@ async function loadAndApplySettings() {
                 });
             }
         }
-        HotkeyManager.updateSettings({
+
+        const currentSettings = {
             hotkeys: hotkeysObject,
             autoConfirm: !!allStorage.autoConfirmEnabled,
             carryLineSnap: !!allStorage.carryLineSnapEnabled,
             frameFixerEnabled: !!allStorage.frameFixerEnabled,
             videoScrubberEnabled: !!allStorage.videoScrubberEnabled,
-            invertScrubberEnabled: !!allStorage.invertScrubberEnabled
-        });
+            invertScrubberEnabled: !!allStorage.invertScrubberEnabled,
+            qaHelperEnabled: allStorage.qaHelperEnabled !== false
+        };
+
+        HotkeyManager.updateSettings(currentSettings);
+        QaHelper.updateSettings(currentSettings);
+
     } catch (err) {
         console.error("[Loader] Error loading settings:", err);
     }
@@ -32,25 +38,32 @@ async function loadAndApplySettings() {
 
 function main() {
     console.log("[Loader] Waiting for page elements...");
+    let modulesInitialized = false;
 
-    const observer = new MutationObserver((mutations, obs) => {
+    const observer = new MutationObserver(() => {
+        if (modulesInitialized) {
+            QaHelper.addQaButtons();
+            return;
+        }
+
         const allElementsReady =
             document.getElementById('Layer_1') &&
             document.getElementById('current-xy-marker') &&
             document.querySelector('#game-events tbody');
 
         if (allElementsReady) {
-            console.log("%c[Loader] All elements found. Initializing modules...", 'color: green; font-weight: bold;');
-            obs.disconnect();
+            modulesInitialized = true;
+            console.log("%c[Loader] All core modules ready. Initializing...", 'color: green; font-weight: bold;');
 
             SvgVerticalSnap.init(document.getElementById('Layer_1'), document.getElementById('current-xy-marker'));
             FrameFixer.enable();
             VideoScrubber.init();
+            QaHelper.init();
             HotkeyManager.init(SvgVerticalSnap);
 
             loadAndApplySettings();
 
-            window.addEventListener('reloadSettings', loadAndApplySettings);
+            chrome.storage.onChanged.addListener(loadAndApplySettings);
 
             console.log('[Loader] Initialization complete.');
         }

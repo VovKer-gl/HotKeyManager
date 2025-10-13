@@ -1,14 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Game Hotkeys Manager",
-  "version": "3.2",
-  "description": "Custom hotkeys manager with SVG snapping for game controls",
+  "version": "2.0",
+  "description": "Custom hotkeys manager with SVG snapping for game controls and QA reporting.",
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "clipboardRead"
   ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Game Hotkeys Settings"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -17,10 +22,16 @@
         "content/modules/FrameFixer.js",
         "content/modules/VideoScrubber.js",
         "content/modules/SvgVerticalSnap.js",
+        "content/modules/QaHelper.js",
         "content/modules/HotkeyManager.js",
         "content/loader.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://oneapp.sportlogiq.com/games-and-eventing/games/hockey/*"],
+      "js": ["content/oneapp_handler.js"],
+      "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
