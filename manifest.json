@@ -20,6 +20,7 @@
       "matches": ["https://app.sportlogiq.com/EventorApp.php*"],
       "js": [
         "content/modules/FrameFixer.js",
+        "content/modules/FrameConflictDetector.js",
         "content/modules/VideoScrubber.js",
         "content/modules/SvgVerticalSnap.js",
         "content/modules/QaHelper.js",

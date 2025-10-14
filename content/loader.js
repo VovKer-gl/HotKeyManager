@@ -59,7 +59,7 @@ function main() {
             VideoScrubber.init();
             QaHelper.init();
             HotkeyManager.init(SvgVerticalSnap);
-
+            FrameConflictDetector.init();
 
             loadAndApplySettings();
 

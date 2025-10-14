@@ -1,4 +1,3 @@
-// content/modules/FrameFixer.js
 const FrameFixer = {
     _observer: null,
     _isEnabled: false,
@@ -37,10 +36,8 @@ const FrameFixer = {
                 clearInterval(this._intervalId);
                 this._intervalId = null;
 
-                // Обробляємо існуючі рядки
                 targetTableBody.querySelectorAll('tr').forEach(row => this._processTableRow(row));
 
-                // Створюємо спостерігача для нових рядків
                 this._observer = new MutationObserver((mutationsList) => {
                     for (const mutation of mutationsList) {
                         for (const node of mutation.addedNodes) {
@@ -57,11 +54,7 @@ const FrameFixer = {
         }, 500);
     },
 
-    /**
-     * Надсилає повідомлення до injected.js для виконання дії
-     * @param {string} eventId
-     * @param {'next' | 'prev'} direction
-     */
+
     _requestFrameFix: function(eventId, direction) {
         window.postMessage({
             type: "FROM_EXT_FRAME_FIX",
@@ -87,13 +80,12 @@ const FrameFixer = {
                 button.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    clickHandler(); // Викликаємо обробник
+                    clickHandler();
                 });
                 cell.appendChild(button);
                 return cell;
             };
 
-            // При кліку викликаємо _requestFrameFix, передаючи ID рядка і напрямок
             const backButtonCell = createButtonCell('Fix Frame (-1F)', 'glyphicon-step-backward', () => this._requestFrameFix(row.id, 'prev'));
             const forwardButtonCell = createButtonCell('Fix Frame (+1F)', 'glyphicon-step-forward', () => this._requestFrameFix(row.id, 'next'));
 
