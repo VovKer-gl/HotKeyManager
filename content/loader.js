@@ -56,10 +56,10 @@ function main() {
             console.log("%c[Loader] All core modules ready. Initializing...", 'color: green; font-weight: bold;');
 
             SvgVerticalSnap.init(document.getElementById('Layer_1'), document.getElementById('current-xy-marker'));
-            FrameFixer.enable();
             VideoScrubber.init();
             QaHelper.init();
             HotkeyManager.init(SvgVerticalSnap);
+
 
             loadAndApplySettings();
 
