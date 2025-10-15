@@ -113,18 +113,22 @@ const FrameConflictDetector = {
         const eventArray = Array.from(events);
 
         const gameEvents = eventArray.filter(e => e.isGameEvent);
-        const nonAssistPlayerEvents = eventArray.filter(e => e.isPlayerEvent && !e.isAssist);
+        const ourTeamNonAssistEvents = eventArray.filter(e => e.isPlayerEvent && !e.isAssist && e.team === 'ours');
+        const opposingTeamNonAssistEvents = eventArray.filter(e => e.isPlayerEvent && !e.isAssist && e.team === 'opponent');
 
-        let isConflict = false;
-        if (nonAssistPlayerEvents.length > 1) isConflict = true;
-        if (nonAssistPlayerEvents.length > 0 && gameEvents.length > 0) isConflict = true;
+        const isOurTeamConflict = ourTeamNonAssistEvents.length > 1 || (ourTeamNonAssistEvents.length > 0 && gameEvents.length > 0);
+        const isOpposingTeamConflict = opposingTeamNonAssistEvents.length > 1 || (opposingTeamNonAssistEvents.length > 0 && gameEvents.length > 0);
 
         const color = this._isHighlightMode ? this._highlightColor : this._defaultColor;
 
         eventArray.forEach(event => {
             let shouldHaveIcon = false;
-            if (isConflict && event.isPlayerEvent && !event.isAssist) {
-                shouldHaveIcon = true;
+            if (event.isPlayerEvent && !event.isAssist) {
+                if (event.team === 'ours' && isOurTeamConflict) {
+                    shouldHaveIcon = true;
+                } else if (event.team === 'opponent' && isOpposingTeamConflict) {
+                    shouldHaveIcon = true;
+                }
             }
             this._renderIcon(event.row, shouldHaveIcon, color);
         });
@@ -157,7 +161,8 @@ const FrameConflictDetector = {
             timestamp: timeCell.textContent.trim(),
             isPlayerEvent: row.id.startsWith('event-player-'),
             isGameEvent: row.id.startsWith('event-game-'),
-            isAssist: desc.includes('1ST ASSIST') || desc.includes('2ND ASSIST')
+            isAssist: desc.includes('1ST ASSIST') || desc.includes('2ND ASSIST'),
+            team: row.classList.contains('opposing-team-event') ? 'opponent' : 'ours'
         };
     },
 
